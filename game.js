@@ -268,6 +268,8 @@ class Tetris {
 class Game {
     constructor() {
         this.canvas = document.getElementById('game');
+        this.canvas.width = GAME_AREA_LEFT * 2 + FIELD_WIDTH * BLOCK_SIZE;
+        this.canvas.height = GAME_AREA_TOP + FIELD_HEIGHT * BLOCK_SIZE + 20;
         this.ctx = this.canvas.getContext('2d');
         this.game = new Tetris(FIELD_HEIGHT, FIELD_WIDTH);
         this.counter = 0;
@@ -277,6 +279,11 @@ class Game {
         // 绑定键盘事件
         document.addEventListener('keydown', this.handleKeyDown.bind(this));
         document.addEventListener('keyup', this.handleKeyUp.bind(this));
+
+        // 创建游戏实例并开始游戏
+        document.addEventListener('DOMContentLoaded', () => {
+            new Game();
+        });
 
         // 开始游戏循环
         this.gameLoop();
