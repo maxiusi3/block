@@ -280,11 +280,6 @@ class Game {
         document.addEventListener('keydown', this.handleKeyDown.bind(this));
         document.addEventListener('keyup', this.handleKeyUp.bind(this));
 
-        // 创建游戏实例并开始游戏
-        document.addEventListener('DOMContentLoaded', () => {
-            new Game();
-        });
-
         // 开始游戏循环
         this.gameLoop();
     }
