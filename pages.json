@@ -1,0 +1,10 @@
+{
+  "name": "tetris-game",
+  "routes": [
+    { "pattern": "/*", "serve": "/index.html" }
+  ],
+  "build": {
+    "command": "",
+    "output": "."
+  }
+}
