@@ -280,6 +280,11 @@ class Game {
         document.addEventListener('keydown', this.handleKeyDown.bind(this));
         document.addEventListener('keyup', this.handleKeyUp.bind(this));
 
+        // 创建游戏实例并开始游戏
+        document.addEventListener('DOMContentLoaded', () => {
+            new Game();
+        });
+
         // 开始游戏循环
         this.gameLoop();
     }
@@ -369,4 +374,90 @@ class Game {
         }
 
         // 绘制消除行特效
-        for (let i = this.game
+        for (const effect of this.game.clearedLineEffects) {
+            if (effect.effectTimer > 0) {
+                // 创建发光效果
+                this.ctx.fillStyle = '#ffff00';
+                this.ctx.globalAlpha = effect.glowAlpha / 255;
+                this.ctx.fillRect(GAME_AREA_LEFT, GAME_AREA_TOP + effect.line * BLOCK_SIZE,
+                                FIELD_WIDTH * BLOCK_SIZE, BLOCK_SIZE);
+                
+                // 只在双倍得分时显示2x提示
+                if (effect.isDouble && effect.effectTimer > 15) {
+                    this.ctx.globalAlpha = 1;
+                    this.ctx.fillStyle = '#ffff00';
+                    this.ctx.font = '24px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('2x',
+                        GAME_AREA_LEFT + FIELD_WIDTH * BLOCK_SIZE / 2,
+                        GAME_AREA_TOP + effect.line * BLOCK_SIZE + BLOCK_SIZE / 2 + 8);
+                }
+                
+                // 更新特效状态
+                effect.effectTimer--;
+                effect.glowAlpha = Math.floor(effect.glowAlpha * 0.9);
+            }
+        }
+        this.ctx.globalAlpha = 1;
+
+        // 绘制当前方块
+        if (this.game.figure) {
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    if (this.game.figure.image().includes(i * 4 + j)) {
+                        this.ctx.fillStyle = COLORS[this.game.figure.color];
+                        this.ctx.fillRect(
+                            GAME_AREA_LEFT + (j + this.game.figure.x) * BLOCK_SIZE,
+                            GAME_AREA_TOP + (i + this.game.figure.y) * BLOCK_SIZE,
+                            BLOCK_SIZE - 1,
+                            BLOCK_SIZE - 1
+                        );
+                    }
+                }
+            }
+        }
+
+        // 更新分数显示
+        document.getElementById('score').textContent = this.game.score;
+        document.getElementById('level').textContent = this.game.level;
+        document.getElementById('high-score').textContent = this.game.highScore;
+
+        // 如果触发双倍得分特效，显示闪烁的分数
+        if (this.game.doubleScoreEffect && this.game.doubleScoreTimer > 0) {
+            const scoreElement = document.getElementById('score');
+            if (this.game.doubleScoreTimer % 6 < 3) {
+                scoreElement.style.color = '#ffff00';
+            } else {
+                scoreElement.style.color = '#ff8000';
+            }
+            this.game.doubleScoreTimer--;
+            if (this.game.doubleScoreTimer <= 0) {
+                this.game.doubleScoreEffect = false;
+                scoreElement.style.color = '#ffffff';
+            }
+        }
+
+        // 显示游戏结束界面
+        const gameOverElement = document.getElementById('game-over');
+        if (this.game.gameOver) {
+            // 绘制半透明背景
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            // 显示游戏结束界面
+            gameOverElement.style.display = 'block';
+            gameOverElement.innerHTML = `
+                <h2>游戏结束!</h2>
+                <p>最终得分: ${this.game.score}</p>
+                <p>按回车键重新开始</p>
+            `;
+        } else {
+            gameOverElement.style.display = 'none';
+        }
+    }
+}
+
+// 创建游戏实例
+window.addEventListener('DOMContentLoaded', () => {
+    new Game();
+});

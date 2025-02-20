@@ -41,24 +41,52 @@
             padding: 20px;
             text-align: center;
             border: 2px solid #fff;
+            border-radius: 10px;
+            min-width: 200px;
+        }
+        #game-over h2 {
+            margin-top: 0;
+            color: #ff0000;
+        }
+        #welcome-screen {
+            display: none;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid #fff;
+            border-radius: 10px;
+            min-width: 200px;
+        }
+        #welcome-screen h1 {
+            margin-top: 0;
+            color: #fff;
+            font-size: 24px;
+        }
+        #welcome-screen p {
+            color: #ffff00;
+            margin: 10px 0;
         }
     </style>
 </head>
 <body>
     <div id="game-container">
-        <canvas id="game" width="500" height="500"></canvas>
+        <canvas id="game"></canvas>
         <div id="score-container">
             <div class="score-item">分数: <span id="score">0</span></div>
             <div class="score-item">等级: <span id="level">1</span></div>
             <div class="score-item">最高分: <span id="high-score">0</span></div>
         </div>
-        <div id="game-over">
-            <h2>游戏结束!</h2>
-            <p>最终得分: <span id="final-score">0</span></p>
-            <p>按回车键重新开始</p>
+        <div id="welcome-screen">
+            <h1>俄罗斯方块</h1>
+            <p>按回车键开始游戏</p>
         </div>
+        <div id="game-over"></div>
     </div>
     <script src="game.js"></script>
-    <script src="init.js"></script>
 </body>
 </html>
