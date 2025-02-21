@@ -22,13 +22,19 @@
         }
         #score-container {
             position: absolute;
-            right: -150px;
-            top: 50px;
+            left: auto;
+            right: 40px;
+            transform: none;
+            top: 60px;
             color: white;
             text-align: left;
+            font-family: "Microsoft YaHei", "SimHei", Arial, sans-serif;
+            min-width: 180px;
         }
         .score-item {
             margin: 10px 0;
+            font-size: 18px;  /* 调整字体大小 */
+            white-space: nowrap;  /* 防止文字换行 */
         }
         #game-over {
             display: none;
@@ -42,7 +48,8 @@
             text-align: center;
             border: 2px solid #fff;
             border-radius: 10px;
-            min-width: 200px;
+            min-width: 250px;  /* 增加宽度以适应中文 */
+            font-family: "Microsoft YaHei", "SimHei", Arial, sans-serif;  /* 添加中文字体 */
         }
         #game-over h2 {
             margin-top: 0;
@@ -87,6 +94,7 @@
         </div>
         <div id="game-over"></div>
     </div>
+    <script src="figures.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

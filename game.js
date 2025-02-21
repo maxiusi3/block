@@ -1,31 +1,24 @@
 // 颜色定义
 const COLORS = [
     '#000000',    // 黑色（背景）
-    '#7825B3',    // 紫色
-    '#64B3B3',    // 青色
-    '#502216',    // 褐色
-    '#508616',    // 绿色
-    '#B42216',    // 红色
-    '#B4227A',    // 粉色
-];
-
-// 方块形状定义
-const FIGURES = [
-    [[1, 5, 9, 13], [4, 5, 6, 7]],    // I
-    [[4, 5, 9, 10], [2, 6, 5, 9]],      // Z
-    [[6, 7, 9, 10], [1, 5, 6, 10]],     // S
-    [[1, 2, 5, 9], [0, 4, 5, 6], [1, 5, 9, 8], [4, 5, 6, 10]],    // J
-    [[1, 2, 6, 10], [5, 6, 7, 9], [2, 6, 10, 11], [3, 5, 6, 7]],  // L
-    [[1, 4, 5, 6], [1, 4, 5, 9], [4, 5, 6, 9], [1, 5, 6, 9]],    // T
-    [[1, 2, 5, 6]],                      // O
+    '#D64C35',    // 朱红
+    '#2B5F75',    // 藏蓝
+    '#8E4B2C',    // 赭石
+    '#557C3E',    // 松绿
+    '#794B8F',    // 紫色
+    '#C17E61',    // 檀色
 ];
 
 // 游戏设置
-const BLOCK_SIZE = 20;
+const BLOCK_SIZE = 24;  // 方块大小
 const FIELD_WIDTH = 10;
 const FIELD_HEIGHT = 20;
-const GAME_AREA_LEFT = 50;
-const GAME_AREA_TOP = 60;
+const GAME_AREA_LEFT = 160;  // 增加左侧空间以适应进度显示
+const GAME_AREA_TOP = 50;
+const PREVIEW_BLOCK_SIZE = BLOCK_SIZE * 0.8;  // 稍微缩小预览区块大小
+const PREVIEW_AREA_LEFT = GAME_AREA_LEFT + FIELD_WIDTH * BLOCK_SIZE + 30;  // 减少间距
+const PREVIEW_AREA_TOP = 220;  // 将预览区域向下移动
+const PREVIEW_AREA_SIZE = 120;  // 预览区域大小
 
 class Figure {
     constructor(x, y) {
@@ -52,9 +45,13 @@ class Tetris {
         this.field = Array(height).fill().map(() => Array(width).fill(0));
         this.score = 0;
         this.level = 1;
-        this.state = "start";
+        this.state = "waiting";
         this.figure = null;
         this.nextFigure = null;
+        this.progressCount = 0;
+        this.maxProgressColumns = 4;
+        this.progressBlocksPerColumn = height;
+        this.victory = false;
         this.gameOver = false;
         this.highScore = this.loadHighScore();
         this.doubleScoreEffect = false;
@@ -72,6 +69,9 @@ class Tetris {
         this.landSound.volume = 0.3;
         this.clearSound.volume = 0.3;
         this.doubleSound.volume = 0.3;
+
+        // 显示欢迎界面
+        document.getElementById('welcome-screen').style.display = 'block';
     }
 
     newFigure() {
@@ -129,6 +129,12 @@ class Tetris {
                     for (let j = 0; j < this.width; j++) {
                         this.field[i1][j] = this.field[i1-1][j];
                     }
+                }
+                // 更新进度并检查胜利条件
+                this.progressCount++;
+                if (this.progressCount >= this.maxProgressColumns * this.progressBlocksPerColumn) {
+                    this.victory = true;
+                    this.gameOver = true;
                 }
             }
         }
@@ -268,7 +274,7 @@ class Tetris {
 class Game {
     constructor() {
         this.canvas = document.getElementById('game');
-        this.canvas.width = GAME_AREA_LEFT * 2 + FIELD_WIDTH * BLOCK_SIZE;
+        this.canvas.width = 700;  // 设置固定宽度
         this.canvas.height = GAME_AREA_TOP + FIELD_HEIGHT * BLOCK_SIZE + 20;
         this.ctx = this.canvas.getContext('2d');
         this.game = new Tetris(FIELD_HEIGHT, FIELD_WIDTH);
@@ -290,12 +296,17 @@ class Game {
     }
 
     handleKeyDown(event) {
-        if (event.key === 'Enter' && this.game.gameOver) {
-            this.game.saveHighScore();
-            this.game = new Tetris(FIELD_HEIGHT, FIELD_WIDTH);
-            this.counter = 0;
-            this.pressingDown = false;
-        } else if (!this.game.gameOver) {
+        if (event.key === 'Enter') {
+            if (this.game.gameOver) {
+                this.game.saveHighScore();
+                this.game = new Tetris(FIELD_HEIGHT, FIELD_WIDTH);
+                this.counter = 0;
+                this.pressingDown = false;
+            } else if (this.game.state === "waiting") {
+                this.game.state = "playing";
+                document.getElementById('welcome-screen').style.display = 'none';
+            }
+        } else if (this.game.state === "playing" && !this.game.gameOver) {
             switch (event.key) {
                 case 'ArrowUp':
                     this.game.rotate();
@@ -335,8 +346,8 @@ class Game {
             this.counter = 0;
         }
 
-        if (this.counter % Math.floor(this.fps / this.game.level) === 0 || this.pressingDown) {
-            if (this.game.state === "start" && !this.game.gameOver) {
+        if (this.counter % Math.floor(this.fps / (0.5 + this.game.level * 0.5)) === 0 || this.pressingDown) {
+            if (this.game.state === "playing" && !this.game.gameOver) {
                 this.game.goDown();
             }
         }
@@ -345,13 +356,49 @@ class Game {
         requestAnimationFrame(this.gameLoop.bind(this));
     }
 
+    lightenColor(color, percent) {
+        const num = parseInt(color.replace('#', ''), 16);
+        const amt = Math.round(2.55 * percent);
+        const R = (num >> 16) + amt;
+        const G = (num >> 8 & 0x00FF) + amt;
+        const B = (num & 0x0000FF) + amt;
+        return '#' + (
+            0x1000000 +
+            (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
+            (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
+            (B < 255 ? (B < 1 ? 0 : B) : 255)
+        ).toString(16).slice(1);
+    }
+
     draw() {
         // 绘制背景
-        this.ctx.fillStyle = COLORS[0];
+        const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+        gradient.addColorStop(0, '#2B5F75');  // 藏蓝色
+        gradient.addColorStop(1, '#000000');  // 渐变至黑色
+        this.ctx.fillStyle = gradient;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // 绘制游戏区域边框
-        this.ctx.strokeStyle = '#ffffff';
+        // 绘制装饰性边框
+        this.ctx.strokeStyle = '#C17E61';  // 檀色边框
+        this.ctx.lineWidth = 4;
+        this.ctx.strokeRect(10, 10, this.canvas.width - 20, this.canvas.height - 20);
+
+        // 添加水墨风装饰
+        this.ctx.strokeStyle = 'rgba(193, 126, 97, 0.3)';  // 半透明檀色
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(30, 30);
+        this.ctx.lineTo(this.canvas.width - 30, 30);
+        this.ctx.moveTo(30, this.canvas.height - 30);
+        this.ctx.lineTo(this.canvas.width - 30, this.canvas.height - 30);
+        this.ctx.stroke();
+
+        // 绘制游戏区域边框和背景
+        this.ctx.fillStyle = 'rgba(43, 95, 117, 0.3)';  // 半透明藏蓝色
+        this.ctx.fillRect(GAME_AREA_LEFT - 2, GAME_AREA_TOP - 2,
+                          FIELD_WIDTH * BLOCK_SIZE + 4, FIELD_HEIGHT * BLOCK_SIZE + 4);
+        this.ctx.strokeStyle = '#D64C35';  // 朱红色边框
+        this.ctx.lineWidth = 2;
         this.ctx.strokeRect(GAME_AREA_LEFT - 2, GAME_AREA_TOP - 2,
                           FIELD_WIDTH * BLOCK_SIZE + 4, FIELD_HEIGHT * BLOCK_SIZE + 4);
 
@@ -359,16 +406,32 @@ class Game {
         for (let i = 0; i < this.game.height; i++) {
             for (let j = 0; j < this.game.width; j++) {
                 // 绘制网格
-                this.ctx.strokeStyle = '#323232';
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                this.ctx.lineWidth = 0.5;
                 this.ctx.strokeRect(GAME_AREA_LEFT + j * BLOCK_SIZE,
                                   GAME_AREA_TOP + i * BLOCK_SIZE,
                                   BLOCK_SIZE, BLOCK_SIZE);
 
                 if (this.game.field[i][j] > 0) {
-                    this.ctx.fillStyle = COLORS[this.game.field[i][j]];
-                    this.ctx.fillRect(GAME_AREA_LEFT + j * BLOCK_SIZE,
-                                    GAME_AREA_TOP + i * BLOCK_SIZE,
-                                    BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+                    const x = GAME_AREA_LEFT + j * BLOCK_SIZE;
+                    const y = GAME_AREA_TOP + i * BLOCK_SIZE;
+                    
+                    // 绘制方块阴影
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                    this.ctx.fillRect(x + 2, y + 2, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+                    
+                    // 绘制方块主体
+                    const blockGradient = this.ctx.createLinearGradient(x, y, x, y + BLOCK_SIZE);
+                    const baseColor = COLORS[this.game.field[i][j]];
+                    blockGradient.addColorStop(0, this.lightenColor(baseColor, 20));
+                    blockGradient.addColorStop(1, baseColor);
+                    
+                    this.ctx.fillStyle = blockGradient;
+                    this.ctx.fillRect(x, y, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+                    
+                    // 绘制高光效果
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                    this.ctx.fillRect(x, y, BLOCK_SIZE - 1, Math.floor(BLOCK_SIZE / 4));
                 }
             }
         }
@@ -405,13 +468,122 @@ class Game {
             for (let i = 0; i < 4; i++) {
                 for (let j = 0; j < 4; j++) {
                     if (this.game.figure.image().includes(i * 4 + j)) {
-                        this.ctx.fillStyle = COLORS[this.game.figure.color];
-                        this.ctx.fillRect(
-                            GAME_AREA_LEFT + (j + this.game.figure.x) * BLOCK_SIZE,
-                            GAME_AREA_TOP + (i + this.game.figure.y) * BLOCK_SIZE,
-                            BLOCK_SIZE - 1,
-                            BLOCK_SIZE - 1
-                        );
+                        const x = GAME_AREA_LEFT + (j + this.game.figure.x) * BLOCK_SIZE;
+                        const y = GAME_AREA_TOP + (i + this.game.figure.y) * BLOCK_SIZE;
+                        
+                        // 绘制方块阴影
+                        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                        this.ctx.fillRect(x + 2, y + 2, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+                        
+                        // 绘制方块主体
+                        const blockGradient = this.ctx.createLinearGradient(x, y, x, y + BLOCK_SIZE);
+                        const baseColor = COLORS[this.game.figure.color];
+                        blockGradient.addColorStop(0, this.lightenColor(baseColor, 20));
+                        blockGradient.addColorStop(1, baseColor);
+                        
+                        this.ctx.fillStyle = blockGradient;
+                        this.ctx.fillRect(x, y, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+                        
+                        // 绘制高光效果
+                        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                        this.ctx.fillRect(x, y, BLOCK_SIZE - 1, Math.floor(BLOCK_SIZE / 4));
+                    }
+                }
+            }
+        }
+
+        // 绘制预览区域
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = '20px "Microsoft YaHei", "SimHei", Arial, sans-serif';
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText('下一个:', PREVIEW_AREA_LEFT, PREVIEW_AREA_TOP + 10);
+
+        // 绘制预览区域边框
+        this.ctx.strokeStyle = '#C17E61';  // 檀色边框
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(PREVIEW_AREA_LEFT, PREVIEW_AREA_TOP + 20,
+                          PREVIEW_AREA_SIZE, PREVIEW_AREA_SIZE);
+
+        // 添加装饰性角落
+        this.ctx.strokeStyle = 'rgba(193, 126, 97, 0.5)';
+        this.ctx.lineWidth = 1;
+        const cornerSize = 10;
+        
+        // 左上角
+        this.ctx.beginPath();
+        this.ctx.moveTo(PREVIEW_AREA_LEFT, PREVIEW_AREA_TOP + cornerSize + 20);
+        this.ctx.lineTo(PREVIEW_AREA_LEFT, PREVIEW_AREA_TOP + 20);
+        this.ctx.lineTo(PREVIEW_AREA_LEFT + cornerSize, PREVIEW_AREA_TOP + 20);
+        this.ctx.stroke();
+        
+        // 右上角
+        this.ctx.beginPath();
+        this.ctx.moveTo(PREVIEW_AREA_LEFT + PREVIEW_AREA_SIZE - cornerSize, PREVIEW_AREA_TOP + 20);
+        this.ctx.lineTo(PREVIEW_AREA_LEFT + PREVIEW_AREA_SIZE, PREVIEW_AREA_TOP + 20);
+        this.ctx.lineTo(PREVIEW_AREA_LEFT + PREVIEW_AREA_SIZE, PREVIEW_AREA_TOP + cornerSize + 20);
+        this.ctx.stroke();
+        
+        // 左下角
+        this.ctx.beginPath();
+        this.ctx.moveTo(PREVIEW_AREA_LEFT, PREVIEW_AREA_TOP + PREVIEW_AREA_SIZE - cornerSize + 20);
+        this.ctx.lineTo(PREVIEW_AREA_LEFT, PREVIEW_AREA_TOP + PREVIEW_AREA_SIZE + 20);
+        this.ctx.lineTo(PREVIEW_AREA_LEFT + cornerSize, PREVIEW_AREA_TOP + PREVIEW_AREA_SIZE + 20);
+        this.ctx.stroke();
+        
+        // 右下角
+        this.ctx.beginPath();
+        this.ctx.moveTo(PREVIEW_AREA_LEFT + PREVIEW_AREA_SIZE - cornerSize, PREVIEW_AREA_TOP + PREVIEW_AREA_SIZE + 20);
+        this.ctx.lineTo(PREVIEW_AREA_LEFT + PREVIEW_AREA_SIZE, PREVIEW_AREA_TOP + PREVIEW_AREA_SIZE + 20);
+        this.ctx.lineTo(PREVIEW_AREA_LEFT + PREVIEW_AREA_SIZE, PREVIEW_AREA_TOP + PREVIEW_AREA_SIZE - cornerSize + 20);
+        this.ctx.stroke();
+
+        // 绘制下一个方块
+        if (this.game.nextFigure) {
+            const shape = this.game.nextFigure.image();
+            let minX = 4, maxX = 0, minY = 4, maxY = 0;
+            
+            // 计算方块的实际边界
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    if (shape.includes(i * 4 + j)) {
+                        minX = Math.min(minX, j);
+                        maxX = Math.max(maxX, j);
+                        minY = Math.min(minY, i);
+                        maxY = Math.max(maxY, i);
+                    }
+                }
+            }
+            
+            const blockWidth = maxX - minX + 1;
+            const blockHeight = maxY - minY + 1;
+            
+            // 修改缩放比例计算逻辑，使预览区域的方块大小与游戏区域一致
+            const previewCenterX = PREVIEW_AREA_LEFT + (PREVIEW_AREA_SIZE - blockWidth * BLOCK_SIZE) / 2;
+            const previewCenterY = PREVIEW_AREA_TOP + 20 + (PREVIEW_AREA_SIZE - blockHeight * BLOCK_SIZE) / 2;
+            
+            // 绘制预览方块
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    if (shape.includes(i * 4 + j)) {
+                        const x = previewCenterX + (j - minX) * BLOCK_SIZE;
+                        const y = previewCenterY + (i - minY) * BLOCK_SIZE;
+                        
+                        // 绘制方块阴影
+                        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                        this.ctx.fillRect(x + 2, y + 2, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+                        
+                        // 绘制方块主体
+                        const blockGradient = this.ctx.createLinearGradient(x, y, x, y + BLOCK_SIZE);
+                        const baseColor = COLORS[this.game.nextFigure.color];
+                        blockGradient.addColorStop(0, this.lightenColor(baseColor, 20));
+                        blockGradient.addColorStop(1, baseColor);
+                        
+                        this.ctx.fillStyle = blockGradient;
+                        this.ctx.fillRect(x, y, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+                        
+                        // 绘制高光效果
+                        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                        this.ctx.fillRect(x, y, BLOCK_SIZE - 1, Math.floor(BLOCK_SIZE / 4));
                     }
                 }
             }
@@ -437,6 +609,41 @@ class Game {
             }
         }
 
+        // 绘制进度显示区域
+        const progressLeft = 20;
+        const progressBottom = GAME_AREA_TOP + FIELD_HEIGHT * BLOCK_SIZE;
+        const progressBlockSize = BLOCK_SIZE;  // 使用与游戏区相同的方块大小
+        const progressSpacing = 2;
+
+        // 添加分隔线
+        this.ctx.strokeStyle = '#C17E61';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(progressLeft + this.game.maxProgressColumns * (progressBlockSize + progressSpacing) + 20, GAME_AREA_TOP);
+        this.ctx.lineTo(progressLeft + this.game.maxProgressColumns * (progressBlockSize + progressSpacing) + 20, progressBottom);
+        this.ctx.stroke();
+
+        for (let col = 0; col < this.game.maxProgressColumns; col++) {
+            for (let row = 0; row < this.game.progressBlocksPerColumn; row++) {
+                const blockIndex = col * this.game.progressBlocksPerColumn + row;
+                const x = progressLeft + col * (progressBlockSize + progressSpacing);
+                const y = progressBottom - (row + 1) * (progressBlockSize + progressSpacing);
+
+                // 如果该方块应该被填充
+                if (blockIndex < this.game.progressCount) {
+                    // 计算当前列的颜色
+                    const progress = col / (this.game.maxProgressColumns - 1);
+                    const r = Math.round(255 + (135 - 255) * progress);  // 从白色(255)过渡到天空蓝(135)
+                    const g = Math.round(255 + (206 - 255) * progress);  // 从白色(255)过渡到天空蓝(206)
+                    const b = Math.round(255 + (235 - 255) * progress);  // 从白色(255)过渡到天空蓝(235)
+                    const color = `rgb(${r}, ${g}, ${b})`;
+                    
+                    this.ctx.fillStyle = color;
+                    this.ctx.fillRect(x, y, progressBlockSize, progressBlockSize);
+                }
+            }
+        }
+
         // 显示游戏结束界面
         const gameOverElement = document.getElementById('game-over');
         if (this.game.gameOver) {
@@ -446,11 +653,19 @@ class Game {
             
             // 显示游戏结束界面
             gameOverElement.style.display = 'block';
-            gameOverElement.innerHTML = `
-                <h2>游戏结束!</h2>
-                <p>最终得分: ${this.game.score}</p>
-                <p>按回车键重新开始</p>
-            `;
+            if (this.game.victory) {
+                gameOverElement.innerHTML = `
+                    <h2>恭喜胜利!</h2>
+                    <p>最终得分: ${this.game.score}</p>
+                    <p>按回车键重新开始</p>
+                `;
+            } else {
+                gameOverElement.innerHTML = `
+                    <h2>游戏结束!</h2>
+                    <p>最终得分: ${this.game.score}</p>
+                    <p>按回车键重新开始</p>
+                `;
+            }
         } else {
             gameOverElement.style.display = 'none';
         }
